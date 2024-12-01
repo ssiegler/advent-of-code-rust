@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 
 pub type Solution = fn(&[u8]) -> Result<(String, String)>;
 
+mod parser;
 mod year_2015;
 mod year_2024;
 

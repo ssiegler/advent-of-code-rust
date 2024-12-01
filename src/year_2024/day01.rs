@@ -1,11 +1,11 @@
+use crate::parser;
 use anyhow::Result;
-use atoi::atoi;
 use itertools::Itertools;
-use nom::character::complete::{digit1, multispace1, newline};
-use nom::combinator::{complete, map_opt};
+use nom::character::complete::{multispace1, newline};
+use nom::combinator::complete;
 use nom::multi::separated_list0;
 use nom::sequence::separated_pair;
-use nom::IResult;
+use parser::integer;
 
 pub(super) fn solution(input: &[u8]) -> Result<(String, String)> {
     let (left, right) = {
@@ -26,15 +26,11 @@ pub(super) fn solution(input: &[u8]) -> Result<(String, String)> {
 fn parse(input: &[u8]) -> Result<(Vec<u32>, Vec<u32>)> {
     let paired = complete(separated_list0(
         newline,
-        separated_pair(decimal, multispace1, decimal),
+        separated_pair(integer, multispace1, integer),
     ))(input)
     .map(|(_, values)| values)
     .map_err(|err| err.to_owned())?;
     Ok(paired.iter().cloned().unzip())
-}
-
-fn decimal(input: &[u8]) -> IResult<&[u8], u32> {
-    map_opt(digit1, atoi)(input)
 }
 
 #[cfg(test)]
