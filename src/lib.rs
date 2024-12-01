@@ -2,10 +2,11 @@ use anyhow::{anyhow, Result};
 
 pub type Solution = fn(&[u8]) -> Result<(String, String)>;
 
+mod year_2015;
 mod year_2024;
 
 static SOLUTIONS: &[&[Solution]] = &[
-    &[], // 2015
+    year_2015::SOLUTIONS,
     &[], // 2016
     &[], // 2017
     &[], // 2018
