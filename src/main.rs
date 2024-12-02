@@ -1,5 +1,5 @@
 use advent_of_code::find_solution;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::Datelike;
 use chrono::Local;
 use clap::Parser;
@@ -57,7 +57,7 @@ fn read_input(file: PathBuf) -> Result<Vec<u8>> {
         stdin().lock().read_to_end(&mut buffer)?;
         buffer
     } else {
-        read(file)?
+        read(&file).with_context(|| format!("Reading file: '{}'", file.display()))?
     })
 }
 

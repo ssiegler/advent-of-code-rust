@@ -1,5 +1,5 @@
 use crate::Solution;
 
 mod day01;
-
-pub(super) static SOLUTIONS: &[Solution] = &[day01::solution];
+mod day02;
+pub(super) static SOLUTIONS: &[Solution] = &[day01::solution, day02::solution];
