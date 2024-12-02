@@ -1,14 +1,21 @@
 use crate::parser::integer;
 use itertools::Itertools;
-use nom::character::complete::{multispace1, newline, space1};
+use nom::character::complete::{newline, space1};
 use nom::combinator::{all_consuming, opt};
 use nom::multi::separated_list1;
 use nom::sequence::terminated;
 
 pub(super) fn solution(input: &[u8]) -> anyhow::Result<(String, String)> {
     let reports = parse(input)?;
-    let safe_report_count = reports.iter().filter(is_safe).count();
-    Ok((safe_report_count.to_string(), "".to_string()))
+    let safe_report_count = reports.iter().filter(|report| is_safe(report)).count();
+    let safe_report_count_with_dampener = reports
+        .iter()
+        .filter(|report| is_safe_with_dampener(report))
+        .count();
+    Ok((
+        safe_report_count.to_string(),
+        safe_report_count_with_dampener.to_string(),
+    ))
 }
 
 type Report = Vec<u32>;
@@ -22,12 +29,23 @@ fn parse(input: &[u8]) -> anyhow::Result<Vec<Report>> {
     Ok(reports)
 }
 
-fn is_safe(report: &&Report) -> bool {
+fn is_safe(report: &Report) -> bool {
     let (increasing, diff): (Vec<bool>, Vec<u32>) = report
         .windows(2)
         .map(|window| (window[0] < window[1], window[0].abs_diff(window[1])))
         .unzip();
     increasing.iter().all_equal() && diff.iter().all(|diff| (1..=3).contains(diff))
+}
+fn is_safe_with_dampener(report: &Report) -> bool {
+    is_safe(report)
+        || (0..report.len()).any(|n| {
+            let dampened: Report = report
+                .iter()
+                .enumerate()
+                .filter_map(|(i, v)| if i != n { Some(*v) } else { None })
+                .collect::<Vec<_>>();
+            is_safe(&dampened)
+        })
 }
 
 #[cfg(test)]
@@ -69,6 +87,16 @@ mod tests {
     #[case(vec![8, 6, 4, 4, 1], false)]
     #[case(vec![1, 3, 6, 7, 9], true)]
     fn check_safety(#[case] report: Report, #[case] safe: bool) {
-        assert_eq!(is_safe(&&report), safe);
+        assert_eq!(is_safe(&report), safe);
+    }
+    #[rstest]
+    #[case(vec![7, 6, 4, 2, 1], true)]
+    #[case(vec![1, 2, 7, 8, 9], false)]
+    #[case(vec![9, 7, 6, 2, 1], false)]
+    #[case(vec![1, 3, 2, 4, 5], true)]
+    #[case(vec![8, 6, 4, 4, 1], true)]
+    #[case(vec![1, 3, 6, 7, 9], true)]
+    fn check_safety_with_dampener(#[case] report: Report, #[case] safe: bool) {
+        assert_eq!(is_safe_with_dampener(&report), safe);
     }
 }
