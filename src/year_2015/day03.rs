@@ -1,58 +1,54 @@
 use std::collections::HashSet;
-use std::iter::once;
 
-pub(super) fn solution(input: &[u8]) -> anyhow::Result<(String, String)> {
-    Ok((
-        scan_positions(input.iter())
-            .collect::<HashSet<_>>()
-            .len()
-            .to_string(),
-        scan_positions(input.iter().step_by(2))
-            .chain(scan_positions(input[1..].iter().step_by(2)))
-            .collect::<HashSet<_>>()
-            .len()
-            .to_string(),
-    ))
+pub fn parse(input: &str) -> Vec<(i32, i32)> {
+    input
+        .bytes()
+        .filter_map(|b| match b {
+            b'>' => Some((0, 1)),
+            b'<' => Some((0, -1)),
+            b'^' => Some((1, 0)),
+            b'v' => Some((-1, 0)),
+            _ => None,
+        })
+        .collect()
 }
 
-type Position = (isize, isize);
+pub fn part1(movements: &[(i32, i32)]) -> usize {
+    let mut positions = HashSet::new();
+    positions.insert((0, 0));
+    collect_positions(&mut positions, movements.iter().cloned());
+    positions.len()
+}
 
-fn scan_positions<'a>(
-    input: impl Iterator<Item = &'a u8> + 'a,
-) -> impl Iterator<Item = Position> + 'a {
-    once((0, 0)).chain(input.scan((0, 0), |(x, y): &mut Position, b| {
-        match *b {
-            b'>' => {
-                *x += 1;
-            }
-            b'^' => {
-                *y += 1;
-            }
-            b'<' => {
-                *x -= 1;
-            }
-            b'v' => {
-                *y -= 1;
-            }
-            _ => {}
-        }
+pub fn part2(movements: &[(i32, i32)]) -> usize {
+    let mut positions = HashSet::new();
+    positions.insert((0, 0));
+    collect_positions(&mut positions, movements.iter().step_by(2).cloned());
+    collect_positions(&mut positions, movements[1..].iter().step_by(2).cloned());
+    positions.len()
+}
+
+fn collect_positions(positions: &mut HashSet<(i32, i32)>, iter: impl Iterator<Item = (i32, i32)>) {
+    iter.scan((0, 0), |(x, y), (dx, dy)| {
+        *x += dx;
+        *y += dy;
         Some((*x, *y))
-    }))
+    })
+    .for_each(|item| {
+        positions.insert(item);
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use itertools::Itertools;
     use rstest::rstest;
-    use std::collections::HashSet;
 
     #[rstest]
-    #[case(b">", 2)]
-    #[case(b"^>v<", 4)]
-    #[case(b"^v^v^v^v^v", 2)]
-    fn counts_positions(#[case] input: &[u8], #[case] count: usize) {
-        let iter = input.iter();
-        assert_eq!(scan_positions(iter).collect::<HashSet<_>>().len(), count);
+    #[case(">", 2)]
+    #[case("^>v<", 4)]
+    #[case("^v^v^v^v^v", 2)]
+    fn counts_positions(#[case] input: &str, #[case] count: usize) {
+        assert_eq!(part1(&parse(input)), count);
     }
 }

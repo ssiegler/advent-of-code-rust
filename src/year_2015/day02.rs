@@ -1,15 +1,8 @@
-use crate::parser::integer;
-use nom::character::complete::{char, newline};
-use nom::combinator::{all_consuming, map, opt};
-use nom::multi::separated_list0;
-use nom::sequence::{terminated, tuple};
-
-pub(super) fn solution(input: &[u8]) -> anyhow::Result<(String, String)> {
-    let presents = parse_presents(input)?;
-    Ok((
-        presents.iter().map(required_paper).sum::<u32>().to_string(),
-        presents.iter().map(required_rope).sum::<u32>().to_string(),
-    ))
+pub fn part1(presents: &[Present]) -> u32 {
+    presents.iter().map(required_paper).sum()
+}
+pub fn part2(presents: &[Present]) -> u32 {
+    presents.iter().map(required_rope).sum()
 }
 
 type Present = (u32, u32, u32);
@@ -26,19 +19,17 @@ fn required_rope((l, w, h): &Present) -> u32 {
     2 * edges[0..=1].iter().sum::<u32>() + edges.iter().product::<u32>()
 }
 
-fn parse_presents(input: &[u8]) -> anyhow::Result<Vec<Present>> {
-    let (_, presents) = all_consuming(terminated(
-        separated_list0(
-            newline,
-            map(
-                tuple((integer, char('x'), integer, char('x'), integer)),
-                |(l, _, w, _, h)| (l, w, h),
-            ),
-        ),
-        opt(newline),
-    ))(input)
-    .map_err(|e| e.to_owned())?;
-    Ok(presents)
+pub fn parse(input: &str) -> Vec<Present> {
+    input
+        .lines()
+        .map(|line| {
+            let split = line
+                .split('x')
+                .map(|part| part.parse::<u32>().expect("Integer dimension"))
+                .collect::<Vec<_>>();
+            (split[0], split[1], split[2])
+        })
+        .collect::<Vec<Present>>()
 }
 
 #[cfg(test)]
@@ -47,12 +38,8 @@ mod tests {
     use rstest::rstest;
 
     #[test]
-    fn parses_presents() -> anyhow::Result<()> {
-        assert_eq!(
-            vec![(2, 3, 4), (1, 1, 10)],
-            parse_presents(b"2x3x4\n1x1x10")?
-        );
-        Ok(())
+    fn parses_presents() {
+        assert_eq!(vec![(2, 3, 4), (1, 1, 10)], parse("2x3x4\n1x1x10"))
     }
 
     #[rstest]

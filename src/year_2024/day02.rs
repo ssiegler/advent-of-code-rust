@@ -1,51 +1,44 @@
-use crate::parser::integer;
-use itertools::Itertools;
-use nom::character::complete::{newline, space1};
-use nom::combinator::{all_consuming, opt};
-use nom::multi::separated_list1;
-use nom::sequence::terminated;
-
-pub(super) fn solution(input: &[u8]) -> anyhow::Result<(String, String)> {
-    let reports = parse(input)?;
-    let safe_report_count = reports.iter().filter(|report| is_safe(report)).count();
-    let safe_report_count_with_dampener = reports
+pub fn part1(reports: &[impl AsRef<[i32]>]) -> usize {
+    reports
         .iter()
-        .filter(|report| is_safe_with_dampener(report))
-        .count();
-    Ok((
-        safe_report_count.to_string(),
-        safe_report_count_with_dampener.to_string(),
-    ))
+        .filter(|report| is_safe(report.as_ref()))
+        .count()
 }
 
-type Report = Vec<u32>;
-
-fn parse(input: &[u8]) -> anyhow::Result<Vec<Report>> {
-    let (_, reports) = all_consuming(terminated(
-        separated_list1(newline, separated_list1(space1, integer)),
-        opt(newline),
-    ))(input)
-    .map_err(|e| e.to_owned())?;
-    Ok(reports)
+pub fn part2(reports: &[impl AsRef<[i32]>]) -> usize {
+    reports
+        .iter()
+        .filter(|report| is_safe_with_dampener(report.as_ref()))
+        .count()
 }
 
-fn is_safe(report: &Report) -> bool {
-    let (increasing, diff): (Vec<bool>, Vec<u32>) = report
-        .windows(2)
-        .map(|window| (window[0] < window[1], window[0].abs_diff(window[1])))
-        .unzip();
-    increasing.iter().all_equal() && diff.iter().all(|diff| (1..=3).contains(diff))
-}
-fn is_safe_with_dampener(report: &Report) -> bool {
-    is_safe(report)
-        || (0..report.len()).any(|n| {
-            let dampened: Report = report
-                .iter()
-                .enumerate()
-                .filter_map(|(i, v)| if i != n { Some(*v) } else { None })
-                .collect::<Vec<_>>();
-            is_safe(&dampened)
+pub fn parse(input: &str) -> Vec<Vec<i32>> {
+    input
+        .lines()
+        .map(|line| {
+            line.split_whitespace()
+                .map(|x| x.parse::<i32>().expect("Numbers separated by whitespace"))
+                .collect()
         })
+        .collect()
+}
+
+fn is_safe(report: &[i32]) -> bool {
+    report
+        .windows(2)
+        .map(|window| window[1] - window[0])
+        .filter(|difference| difference.abs() <= 3)
+        .map(|difference| difference.signum())
+        .sum::<i32>()
+        .abs()
+        == (report.len() - 1) as i32
+}
+fn is_safe_with_dampener(report: &[i32]) -> bool {
+    (0..report.len()).any(|n| {
+        let mut dampened: Vec<i32> = report.to_vec();
+        dampened.remove(n);
+        is_safe(&dampened)
+    })
 }
 
 #[cfg(test)]
@@ -53,9 +46,18 @@ mod tests {
     use super::*;
     use rstest::rstest;
 
+    const EXAMPLE_INPUT: &str = "\
+7 6 4 2 1
+1 2 7 8 9
+9 7 6 2 1
+1 3 2 4 5
+8 6 4 4 1
+1 3 6 7 9
+";
+
     #[test]
-    fn parses_example() -> anyhow::Result<()> {
-        let reports: Vec<Report> = vec![
+    fn parses_example() {
+        let reports: Vec<Vec<i32>> = vec![
             vec![7, 6, 4, 2, 1],
             vec![1, 2, 7, 8, 9],
             vec![9, 7, 6, 2, 1],
@@ -63,20 +65,7 @@ mod tests {
             vec![8, 6, 4, 4, 1],
             vec![1, 3, 6, 7, 9],
         ];
-        assert_eq!(
-            reports,
-            parse(
-                b"\
-7 6 4 2 1
-1 2 7 8 9
-9 7 6 2 1
-1 3 2 4 5
-8 6 4 4 1
-1 3 6 7 9
-"
-            )?
-        );
-        Ok(())
+        assert_eq!(reports, parse(EXAMPLE_INPUT));
     }
 
     #[rstest]
@@ -86,7 +75,7 @@ mod tests {
     #[case(vec![1, 3, 2, 4, 5], false)]
     #[case(vec![8, 6, 4, 4, 1], false)]
     #[case(vec![1, 3, 6, 7, 9], true)]
-    fn check_safety(#[case] report: Report, #[case] safe: bool) {
+    fn check_safety(#[case] report: Vec<i32>, #[case] safe: bool) {
         assert_eq!(is_safe(&report), safe);
     }
     #[rstest]
@@ -96,7 +85,17 @@ mod tests {
     #[case(vec![1, 3, 2, 4, 5], true)]
     #[case(vec![8, 6, 4, 4, 1], true)]
     #[case(vec![1, 3, 6, 7, 9], true)]
-    fn check_safety_with_dampener(#[case] report: Report, #[case] safe: bool) {
+    fn check_safety_with_dampener(#[case] report: Vec<i32>, #[case] safe: bool) {
         assert_eq!(is_safe_with_dampener(&report), safe);
+    }
+
+    #[test]
+    fn test_part1() {
+        assert_eq!(part1(&parse(EXAMPLE_INPUT)), 2);
+    }
+
+    #[test]
+    fn test_part2() {
+        assert_eq!(part2(&parse(EXAMPLE_INPUT)), 4);
     }
 }

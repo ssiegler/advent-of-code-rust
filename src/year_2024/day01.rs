@@ -1,43 +1,49 @@
-use crate::parser;
-use anyhow::Result;
-use itertools::Itertools;
-use nom::character::complete::{multispace1, newline};
-use nom::combinator::complete;
-use nom::multi::separated_list0;
-use nom::sequence::separated_pair;
-use parser::integer;
+use std::collections::HashMap;
 
-pub(super) fn solution(input: &[u8]) -> Result<(String, String)> {
-    let (left, right) = {
-        let (mut left, mut right) = parse(input)?;
-        left.sort();
-        right.sort();
-        (left, right)
-    };
-    let total_distance: u32 = left.iter().zip(&right).map(|(a, b)| a.abs_diff(*b)).sum();
-    let counts = right.iter().counts();
-    let similarity_score: usize = left
-        .iter()
-        .map(|number| *number as usize * counts.get(number).cloned().unwrap_or(0))
-        .sum();
-    Ok((total_distance.to_string(), similarity_score.to_string()))
+pub fn part1((left, right): &Input) -> u32 {
+    let mut left = left.clone();
+    left.sort_unstable();
+    let mut right = right.clone();
+    right.sort_unstable();
+
+    left.iter().zip(right).map(|(a, b)| a.abs_diff(b)).sum()
 }
 
-fn parse(input: &[u8]) -> Result<(Vec<u32>, Vec<u32>)> {
-    let paired = complete(separated_list0(
-        newline,
-        separated_pair(integer, multispace1, integer),
-    ))(input)
-    .map(|(_, values)| values)
-    .map_err(|err| err.to_owned())?;
-    Ok(paired.iter().cloned().unzip())
+pub fn part2((left, right): &Input) -> u32 {
+    let mut counts = HashMap::new();
+    right
+        .iter()
+        .for_each(|b| *counts.entry(b).or_insert(0) += 1);
+    left.iter()
+        .filter_map(|a| counts.get(a).map(|b| a * b))
+        .sum()
+}
+
+type Input = (Vec<u32>, Vec<u32>);
+
+pub fn parse(input: &str) -> Input {
+    input
+        .lines()
+        .filter_map(|line| {
+            if let [left, right] = line
+                .split_whitespace()
+                .map(|n| n.parse::<u32>().expect("numbers"))
+                .take(2)
+                .collect::<Vec<_>>()[..]
+            {
+                Some((left, right))
+            } else {
+                None
+            }
+        })
+        .unzip()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const EXAMPLE: &[u8; 35] = b"3   4
+    const EXAMPLE: &str = "3   4
 4   3
 2   5
 1   3
@@ -45,16 +51,20 @@ mod tests {
 3   3";
 
     #[test]
-    fn parses_example_lists() -> Result<()> {
+    fn parses_example_lists() {
         assert_eq!(
-            parse(EXAMPLE)?,
+            parse(EXAMPLE),
             (vec![3, 4, 2, 1, 3, 3], vec![4, 3, 5, 3, 9, 3])
         );
-        Ok(())
     }
     #[test]
-    fn solve_example() -> Result<()> {
-        assert_eq!(solution(EXAMPLE)?, ("11".to_string(), "31".to_string()));
-        Ok(())
+    fn solves_part1() {
+        let input = parse(EXAMPLE);
+        assert_eq!(part1(&input), 11);
+    }
+    #[test]
+    fn solves_part2() {
+        let input = parse(EXAMPLE);
+        assert_eq!(part2(&input), 31);
     }
 }
