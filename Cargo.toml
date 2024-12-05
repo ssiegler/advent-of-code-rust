@@ -3,5 +3,8 @@ name = "aoc"
 version = "0.0.0"
 edition = "2021"
 
+[dependencies]
+regex = "1.11.1"
+
 [dev-dependencies]
 rstest = "0.23.0"
