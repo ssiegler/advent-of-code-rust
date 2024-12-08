@@ -28,8 +28,31 @@ pub fn part1(input: &Input) -> usize {
         .count()
 }
 
-pub fn part2(_input: &Input) -> String {
-    "not implemented".to_string()
+pub fn part2(input: &Input) -> usize {
+    input
+        .iter()
+        .filter(|((x, y), char)| {
+            **char == 'A'
+                && (-1..=1)
+                    .flat_map(|dx| {
+                        (-1..=1)
+                            .map(move |dy| (dx, dy))
+                            .filter(|(dx, dy)| *dx != 0 && *dy != 0)
+                    })
+                    .filter(move |(dx, dy)| {
+                        if let (Some(m), Some(s)) = (
+                            &&input.get(&(*x - *dx, *y - *dy)),
+                            &&input.get(&(*x + *dx, *y + *dy)),
+                        ) {
+                            **m == 'M' && **s == 'S'
+                        } else {
+                            false
+                        }
+                    })
+                    .count()
+                    == 2
+        })
+        .count()
 }
 
 pub fn parse(input: &str) -> HashMap<(i32, i32), char> {
@@ -63,5 +86,10 @@ MXMXAXMASX
     #[test]
     fn test_part1() {
         assert_eq!(part1(&parse(EXAMPLE_INPUT)), 18);
+    }
+
+    #[test]
+    fn test_part2() {
+        assert_eq!(part2(&parse(EXAMPLE_INPUT)), 9);
     }
 }
