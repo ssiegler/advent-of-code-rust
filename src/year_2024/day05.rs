@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashSet;
 
 pub struct Input {
@@ -6,8 +7,19 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn valid_updates(&self) -> impl Iterator<Item = &Vec<u32>> {
+    fn valid_updates(&self) -> impl Iterator<Item = &Vec<u32>> {
         self.updates.iter().filter(|update| self.is_valid(update))
+    }
+
+    fn corrected_updates(&self) -> impl Iterator<Item = Vec<u32>> + use<'_> {
+        self.updates
+            .iter()
+            .filter(|update| !self.is_valid(update))
+            .map(|update| {
+                let mut corrected = update.clone();
+                self.fix_order(&mut corrected);
+                corrected
+            })
     }
 
     fn is_valid(&self, update: &[u32]) -> bool {
@@ -17,14 +29,26 @@ impl Input {
                 .all(|left| !(self.rules.contains(&(*right, *left))))
         })
     }
+
+    fn fix_order(&self, update: &mut [u32]) {
+        update.sort_by(|left, right| {
+            if self.rules.contains(&(*left, *right)) {
+                Ordering::Less
+            } else if self.rules.contains(&(*right, *left)) {
+                Ordering::Greater
+            } else {
+                Ordering::Equal
+            }
+        })
+    }
 }
 
 pub fn part1(input: &Input) -> u32 {
-    input.valid_updates().map(|x| x[(x.len()) / 2]).sum()
+    input.valid_updates().map(|x| x[x.len() / 2]).sum()
 }
 
-pub fn part2(_input: &Input) -> String {
-    "not yet done".to_string()
+pub fn part2(input: &Input) -> u32 {
+    input.corrected_updates().map(|x| x[x.len() / 2]).sum()
 }
 
 pub fn parse(input: &str) -> Input {
@@ -125,5 +149,32 @@ mod tests {
     #[test]
     fn solves_part1() {
         assert_eq!(part1(&parse(EXAMPLE_INPUT)), 143);
+    }
+
+    #[test]
+    fn corrects_order() {
+        let input = parse(EXAMPLE_INPUT);
+        let mut update = vec![75, 97, 47, 61, 53];
+        input.fix_order(&mut update);
+        assert_eq!(update, vec![97, 75, 47, 61, 53]);
+    }
+
+    #[test]
+    fn corrects_incorrect_updates() {
+        let input = parse(EXAMPLE_INPUT);
+
+        assert_eq!(
+            input.corrected_updates().collect::<Vec<_>>(),
+            vec![
+                vec![97, 75, 47, 61, 53],
+                vec![61, 29, 13],
+                vec![97, 75, 47, 29, 13],
+            ]
+        );
+    }
+
+    #[test]
+    fn solves_part2() {
+        assert_eq!(part2(&parse(EXAMPLE_INPUT)), 123);
     }
 }
