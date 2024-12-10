@@ -1,3 +1,4 @@
+use itertools::iterate;
 use std::collections::{HashMap, HashSet};
 
 #[derive(PartialEq, Debug)]
@@ -19,8 +20,13 @@ pub fn part1(input: &Input) -> usize {
         .len()
 }
 
-pub fn part2(input: &Input) -> String {
-    "".to_string()
+pub fn part2(input: &Input) -> usize {
+    input
+        .antennas
+        .values()
+        .flat_map(|antennas| all_antinodes(antennas, input.height, input.width))
+        .collect::<HashSet<_>>()
+        .len()
 }
 
 pub fn parse(input: &str) -> Input {
@@ -55,6 +61,27 @@ fn antinodes(antennas: &[(i32, i32)]) -> impl Iterator<Item = (i32, i32)> + use<
             .flat_map(move |(row2, column2)| {
                 let (drow, dcolumn) = (row2 - row1, column2 - column1);
                 std::iter::once((row2 + drow, column2 + dcolumn))
+            })
+    })
+}
+
+fn all_antinodes(
+    antennas: &[(i32, i32)],
+    height: i32,
+    width: i32,
+) -> impl Iterator<Item = (i32, i32)> + use<'_> {
+    antennas.iter().flat_map(move |antenna1 @ (row1, column1)| {
+        antennas
+            .iter()
+            .filter(move |antenna2| antenna1 != *antenna2)
+            .flat_map(move |(row2, column2)| {
+                let (drow, dcolumn) = (row2 - row1, column2 - column1);
+                iterate((*row2, *column2), move |(row, column)| {
+                    (*row + drow, *column + dcolumn)
+                })
+                .take_while(move |(row, column)| {
+                    (0..height).contains(row) && (0..width).contains(column)
+                })
             })
     })
 }
@@ -106,5 +133,10 @@ mod tests {
     #[test]
     fn solves_part1() {
         assert_eq!(part1(&parse(EXAMPLE_INPUT)), 14);
+    }
+
+    #[test]
+    fn solves_part2() {
+        assert_eq!(part2(&parse(EXAMPLE_INPUT)), 34);
     }
 }
