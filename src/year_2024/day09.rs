@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use std::ops::{Add, Range};
 
 type Input = Vec<(Option<usize>, u8)>;
 
@@ -14,8 +15,8 @@ fn checksum(blocks: &[Option<usize>]) -> usize {
         .sum()
 }
 
-pub fn part2(_input: &Input) -> String {
-    "todo".to_string()
+pub fn part2(input: &Input) -> usize {
+    checksum(&blocks(&compact_files(input)))
 }
 
 pub fn parse(input: &str) -> Input {
@@ -59,23 +60,59 @@ fn compact(input: &Input) -> Vec<Option<usize>> {
     result
 }
 
-#[cfg(test)]
-fn print(input: &[Option<usize>]) -> String {
-    let mut output = String::with_capacity(input.len());
-    for block in input {
-        if let Some(id) = block {
-            output.push_str(&id.to_string());
-        } else {
-            output.push('.');
+fn compact_files(input: &Input) -> Input {
+    let (mut files, mut free): (Vec<_>, _) = input
+        .iter()
+        .scan(0, |position, (id, size)| {
+            let blocks = *position..(*position + *size as usize);
+            *position = blocks.end;
+            Some((blocks, *id))
+        })
+        .partition(|(_, id)| id.is_some());
+    for (file_blocks, _) in files.iter_mut().rev() {
+        if let Some((free_index, (free_blocks, _))) =
+            free.iter().enumerate().find(|(_, (free_blocks, _))| {
+                free_blocks.len() >= file_blocks.len() && free_blocks.start < file_blocks.start
+            })
+        {
+            let new_free = (file_blocks.clone(), None);
+            let end = free_blocks.start.add(file_blocks.len());
+            *file_blocks = free_blocks.start..end;
+            free[free_index].0 = end..free_blocks.end;
+            free.push(new_free);
         }
     }
-    output
+    merge_blocks(&files, &free)
+}
+
+fn merge_blocks(
+    files: &[(Range<usize>, Option<usize>)],
+    free: &[(Range<usize>, Option<usize>)],
+) -> Input {
+    files
+        .iter()
+        .chain(free.iter())
+        .sorted_unstable_by_key(|(blocks, _)| blocks.start)
+        .map(|(blocks, id)| (*id, blocks.len() as u8))
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use rstest::rstest;
+
+    fn print(input: &[Option<usize>]) -> String {
+        let mut output = String::with_capacity(input.len());
+        for block in input {
+            if let Some(id) = block {
+                output.push_str(&id.to_string());
+            } else {
+                output.push('.');
+            }
+        }
+        output
+    }
 
     #[test]
     fn parse_12345() {
@@ -104,5 +141,18 @@ mod tests {
     #[test]
     fn solves_example_part1() {
         assert_eq!(part1(&parse(EXAMPLE)), 1928);
+    }
+
+    #[test]
+    fn compacts_files() {
+        assert_eq!(
+            print(&blocks(&compact_files(&parse(EXAMPLE)))),
+            "00992111777.44.333....5555.6666.....8888.."
+        );
+    }
+
+    #[test]
+    fn solves_part2() {
+        assert_eq!(part2(&parse(EXAMPLE)), 2858);
     }
 }
