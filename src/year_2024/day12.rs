@@ -2,19 +2,23 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 type Input = HashMap<(isize, isize), u8>;
 pub fn part1(input: &Input) -> usize {
+    total_price(input, price)
+}
+
+fn total_price(input: &Input, region_price: fn(&HashSet<(isize, isize)>) -> usize) -> usize {
     let mut visited = HashSet::new();
     let mut total = 0;
     for position in input.keys() {
         if visited.insert(*position) {
-            let region = find_region(input, *position);
+            let region = find_region(input, position);
             visited.extend(&region);
-            total += price(region)
+            total += region_price(&region)
         }
     }
     total
 }
 
-fn find_region(map: &Input, position @ (x, y): (isize, isize)) -> HashSet<(isize, isize)> {
+fn find_region(map: &Input, &position @ (x, y): &(isize, isize)) -> HashSet<(isize, isize)> {
     let mut region = HashSet::new();
     let inside = {
         let plant = *map.get(&position).expect("plant for position");
@@ -55,22 +59,41 @@ fn find_region(map: &Input, position @ (x, y): (isize, isize)) -> HashSet<(isize
     region
 }
 
-fn price(region: HashSet<(isize, isize)>) -> usize {
+fn price(region: &HashSet<(isize, isize)>) -> usize {
     let area = region.len();
     let perimeter = region
         .iter()
-        .flat_map(|position| neighbors(*position))
+        .flat_map(neighbors)
         .filter(|position| !region.contains(position))
         .count();
     area * perimeter
 }
 
-fn neighbors((x, y): (isize, isize)) -> impl Iterator<Item = (isize, isize)> {
+fn discounted_price(region: &HashSet<(isize, isize)>) -> usize {
+    let area = region.len();
+    let sides = region
+        .iter()
+        .map(|position| count_corners(region, position))
+        .sum::<usize>();
+    area * sides
+}
+
+fn count_corners(region: &HashSet<(isize, isize)>, &(x, y): &(isize, isize)) -> usize {
+    [(-1, -1), (-1, 1), (1, 1), (1, -1)]
+        .iter()
+        .filter(|(dx, dy)| {
+            !region.contains(&(x + *dx, y))
+                && (!region.contains(&(x, y + *dy)) || region.contains(&(x + *dx, y + *dy)))
+        })
+        .count()
+}
+
+fn neighbors(&(x, y): &(isize, isize)) -> impl Iterator<Item = (isize, isize)> {
     [(x - 1, y), (x, y - 1), (x + 1, y), (x, y + 1)].into_iter()
 }
 
-pub fn part2(_input: &Input) -> usize {
-    0
+pub fn part2(input: &Input) -> usize {
+    total_price(input, discounted_price)
 }
 
 pub fn parse(input: &str) -> Input {
@@ -112,5 +135,49 @@ MMMISSJEEE";
     #[case(EXAMPLE2, 1930)]
     fn solves_part1(#[case] input: &str, #[case] price: usize) {
         assert_eq!(part1(&parse(input)), price);
+    }
+
+    #[rstest]
+    #[case(
+        "AAAA
+BBCD
+BBCC
+EEEC",
+        80
+    )]
+    #[case(EXAMPLE1, 436)]
+    #[case(
+        "EEEEE
+EXXXX
+EEEEE
+EXXXX
+EEEEE
+",
+        236
+    )]
+    #[case(
+        "AAAAAA
+AAABBA
+AAABBA
+ABBAAA
+ABBAAA
+AAAAAA
+",
+        368
+    )]
+    #[case(EXAMPLE2, 1206)]
+    fn solves_part2(#[case] input: &str, #[case] price: usize) {
+        assert_eq!(part2(&parse(input)), price);
+    }
+
+    #[rstest]
+    #[case(&[(0,0)], (0,0), 4)]
+    fn counts_counters(
+        #[case] region: &[(isize, isize)],
+        #[case] position: (isize, isize),
+        #[case] corners: usize,
+    ) {
+        let region: HashSet<(isize, isize)> = region.iter().cloned().collect();
+        assert_eq!(count_corners(&region, &position), corners);
     }
 }
